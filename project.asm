@@ -12,7 +12,9 @@ select_prompt db "Enter user id:",10
 select_len equ $-select_prompt
 no_user_prompt db 10,"No User Found!!!",10,10
 no_user_len equ $-no_user_prompt
-input db 96 dup(" ") ; name : 50 char , age : 3 int
+invalid_prompt db 10,"Invalid Input!!!",10,10
+invalid_len equ $-invalid_prompt
+input db 96 dup(",") ; name : 50 char , age : 3 int
 array dd 10 dup(0) ; to save ids
 name_array db 1000 dup(",") ; to save names
 age_array db 100 dup(",") ; to save ages 
@@ -111,6 +113,7 @@ _create:
     mov ecx , input ; msg is a pointer to our string
     mov edx , 50 ; data size
     call _read
+    call _input_check
 ;
 
 ; Seperate
@@ -221,6 +224,8 @@ _select:
     mov ecx , input ; msg is a pointer to our string
     mov edx , 50 ; data size
     call _read
+    call _select_input_check
+
 
 ; Convert to integer
     mov dh, 10
@@ -303,22 +308,28 @@ _set_youngest:
     mov dl, [id]
     mov [young_id], dl 
     jmp _age_continue
+
+
 ; exceptions
 
 _read_exception:
 ; Error Prompt
     mov ecx , err_prompt
     mov edx , err_len
-    call _display 
+    call _display
 jmp _choice_loop
 
 _no_user_exception:
     mov ecx, no_user_prompt
     mov edx, no_user_len
     call _display
-    jmp _choice_loop
-    
+jmp _choice_loop
 
+_invalid_input_exception:
+    mov ecx, invalid_prompt
+    mov edx, invalid_len
+    call _display
+jmp _choice_loop
 
 ; functions
 _display_id:
@@ -377,6 +388,69 @@ _display_continue:
     pop esi
     mov ecx, esi
     call _display
+    ret
+
+_input_check:
+    mov esi, input
+    mov dh, ","
+    mov ecx, 0       ; Clear ecx for counting the number of characters read
+    jmp _space_exist
+
+_space_found:
+    mov byte al, [esi]
+    inc ecx
+    inc esi
+
+    cmp al, 10
+    je _space_exist
+    
+    cmp al, 48
+    jl _invalid_input_exception
+    
+    cmp al, 57
+    jg _invalid_input_exception
+    
+    jmp _space_found
+
+_space_exist:
+    ; esi contain source address ; !!! initialize : ecx,0 ; dh: end specifier
+    mov byte al, [esi]
+    inc esi
+    cmp al, " "
+    je _space_found
+    cmp al, dh
+    jne _space_exist
+
+    cmp ecx, 1
+    jle _invalid_input_exception
+    
+    ret
+
+_select_input_check:
+    mov esi, input
+    mov dh, 10
+    mov ecx, 0
+
+_select_checker:
+    mov byte al, [esi]
+    inc ecx
+    inc esi
+
+    cmp al, 10
+    je _end_check
+    
+    cmp al, 48
+    jl _invalid_input_exception
+    
+    cmp al, 57
+    jg _invalid_input_exception
+    
+    jmp _select_checker
+
+_end_check:
+    cmp ecx, 1
+    jle _invalid_input_exception
+
     ret
 
 _copy_string:
